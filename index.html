@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f172a"><link rel="manifest" href="manifest.webmanifest">
+<title>P1S Business Calculator Pro</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:#0f172a;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}.app{max-width:1150px;margin:auto;padding:14px 12px 50px}
+header{background:#0f172a;color:white;border-radius:18px;padding:18px;margin-bottom:12px}header h1{margin:0;font-size:25px}.muted{color:#64748b;font-size:12px}.hero-muted{color:#cbd5e1;font-size:12px;margin-top:4px}
+nav{display:flex;gap:7px;overflow:auto;margin:10px 0}nav button{white-space:nowrap}.tab{background:#e2e8f0;color:#334155}.tab.active{background:#0f172a;color:white}
+button{border:0;border-radius:10px;padding:10px 13px;font-weight:750;cursor:pointer}.primary{background:#0f172a;color:#fff}.secondary{background:#e2e8f0;color:#0f172a}.danger{background:#fee2e2;color:#991b1b}
+.card{background:white;border-radius:16px;padding:15px;margin:11px 0;box-shadow:0 2px 12px #0f172a0b}.card h2{font-size:17px;margin:0 0 12px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+label{display:block;font-size:11px;font-weight:750;color:#475569}input,select{display:block;width:100%;margin-top:5px;border:1px solid #cbd5e1;border-radius:9px;padding:10px;font-size:16px;background:#fff;color:#0f172a}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.kpi{padding:12px;border-radius:12px;background:#f8fafc}.kpi b{display:block;font-size:21px;margin-top:3px}
+.product-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.product{border:1px solid #e2e8f0;border-radius:14px;padding:13px}.product h3{margin:0 0 10px}.actions{display:flex;gap:8px;flex-wrap:wrap}
+.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:900px}th,td{padding:9px;border-bottom:1px solid #e2e8f0;font-size:12px;text-align:right}th:first-child,td:first-child{text-align:left}th{background:#f8fafc}
+.good{font-weight:800}.warn{color:#b45309;font-weight:800}.bad{color:#b91c1c;font-weight:800}.tip{background:#eff6ff;color:#1e40af;border-radius:11px;padding:10px;font-size:12px}.hidden{display:none}
+@media(max-width:760px){.grid,.product-grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}}
+</style></head><body><div class="app">
+<header><h1>🖨️ P1S Business Calculator Pro</h1><div class="hero-muted">Pricing, profitability & product planning for your 3D-printing business</div></header>
+<nav><button class="tab active" data-tab="dashboard">Dashboard</button><button class="tab" data-tab="products">Products</button><button class="tab" data-tab="settings">Business Settings</button></nav>
+
+<section id="dashboard">
+<div class="card"><h2>Business snapshot</h2><div class="kpis" id="kpis"></div></div>
+<div class="card"><h2>5-product comparison</h2><div class="table-wrap"><table id="table"></table></div></div>
+<div class="card"><h2>Pricing guidance</h2><div id="guidance"></div></div>
+</section>
+
+<section id="products" class="hidden">
+<div class="card"><div class="actions"><button class="primary" id="save">Save to phone</button><button class="secondary" id="export">Export JSON</button><button class="secondary" id="importBtn">Import JSON</button><button class="danger" id="reset">Reset</button><input id="file" type="file" accept=".json" class="hidden"></div></div>
+<div class="product-grid" id="productGrid"></div>
+</section>
+
+<section id="settings" class="hidden">
+<div class="card"><h2>Materials & machine</h2><div class="grid">
+<label>Default filament ($/kg)<input id="filament" type="number" value="15" step=".01"></label>
+<label>P1S average power (W)<input id="power" type="number" value="100"></label>
+<label>Electricity ($/kWh)<input id="electricity" type="number" value=".1128" step=".0001"></label>
+<label>Minimum margin (%)<input id="minMargin" type="number" value="30" step=".1"></label>
+<label>Target profit / sale ($)<input id="targetProfit" type="number" value="10" step=".01"></label>
+<label>Monthly fixed overhead ($)<input id="overhead" type="number" value="0" step=".01"></label>
+</div></div>
+<div class="card"><h2>Sales channel fees</h2><div class="grid">
+<label>Etsy transaction (%)<input id="etsyTx" type="number" value="6.5" step=".1"></label>
+<label>Etsy processing (%)<input id="etsyProc" type="number" value="3" step=".1"></label>
+<label>Etsy fixed payment fee ($)<input id="etsyFixed" type="number" value=".25" step=".01"></label>
+<label>Etsy listing fee ($)<input id="etsyList" type="number" value=".27" step=".01"></label>
+<label>Etsy regulatory fee (%)<input id="etsyReg" type="number" value="0" step=".1"></label>
+<label>Local sale fee (%)<input id="localFee" type="number" value="0" step=".1"></label>
+</div><div class="tip">Offsite Ads, taxes, currency conversion and other account-specific charges are not assumed. Add them to the product/channel costs when applicable.</div></div>
+</section>
+</div>
+<script>
+const P=["Product 1","Product 2","Product 3","Product 4","Product 5"];
+const fields=[
+["price","Current selling price ($)"],["grams","Filament used (g)"],["kg","Filament cost ($/kg)"],
+["hours","Print time (h)"],["pack","Packaging ($)"],["shipping","Shipping paid by you ($)"],
+["laborHours","Labor time (h)"],["laborRate","Labor rate ($/h)"],["failure","Failed-print allowance (%)"],
+["channel","Sales channel"] ];
+const defaults=[
+[15,50,15,2,.50,0,.10,20,5,"Etsy"],[25,80,15,3,.60,0,.10,20,5,"Etsy"],
+[35,120,15,4,.75,0,.15,20,5,"Etsy"],[50,180,15,6,1,0,.20,20,5,"Local"],
+[75,250,15,8,1.25,0,.25,20,5,"Etsy"]];
+const channels=["Etsy","Local","Marketplace"];
+const $=id=>document.getElementById(id), n=id=>parseFloat($(id).value)||0, money=x=>"$"+x.toFixed(2);
+function render(ps){
+ $("productGrid").innerHTML=P.map((name,i)=>`<div class="product"><h3>${name}</h3><div class="grid">${fields.map((f,j)=>j===9?
+`<label>${f[1]}<select data-i="${i}" data-f="${f[0]}">${channels.map(c=>`<option ${((ps?.[i]?.[j]??defaults[i][j])===c)?"selected":""}>${c}</option>`).join("")}</select></label>`:
+`<label>${f[1]}<input data-i="${i}" data-f="${f[0]}" type="number" step=".01" value="${ps?.[i]?.[j]??defaults[i][j]}"></label>`).join("")}</div></div>`).join("");
+ document.querySelectorAll("#productGrid input,#productGrid select").forEach(x=>x.oninput=calculate);
+}
+function products(){return P.map((name,i)=>{let o={name};document.querySelectorAll(`[data-i="${i}"]`).forEach(x=>o[x.dataset.f]=x.type==="number"?(parseFloat(x.value)||0):x.value);return o})}
+function channelRate(p){if(p.channel==="Etsy")return(n("etsyTx")+n("etsyProc")+n("etsyReg"))/100; if(p.channel==="Marketplace")return n("localFee")/100; return n("localFee")/100}
+function calc(p){
+ let vr=channelRate(p), filament=p.grams/1000*p.kg, elec=n("power")/1000*p.hours*n("electricity"), labor=p.laborHours*p.laborRate;
+ let base=filament+elec+p.pack+p.shipping+labor, failed=base*p.failure/100, fixed=base+failed;
+ if(p.channel==="Etsy")fixed+=n("etsyFixed")+n("etsyList");
+ let total=fixed+p.price*vr, profit=p.price-total, margin=p.price?profit/p.price:0, den=1-vr;
+ let minp=(den-n("minMargin")/100)>0?fixed/(den-n("minMargin")/100):Infinity;
+ let target=den>0?(fixed+n("targetProfit"))/den:Infinity;
+ return{filament,elec,labor,fixed,total,profit,margin,breakEven:den>0?fixed/den:Infinity,minp,target,ph:p.hours?profit/p.hours:0}
+}
+function calculate(){
+ let ps=products(),rs=ps.map(calc);
+ let bestProfit=rs.reduce((a,r,i)=>r.profit>a.r.profit?{i,r}:{i:a.i,r:a.r},{i:0,r:rs[0]});
+ let bestHour=rs.reduce((a,r,i)=>r.ph>a.r.ph?{i,r}:{i:a.i,r:a.r},{i:0,r:rs[0]});
+ $("kpis").innerHTML=[["Highest profit/sale",money(bestProfit.r.profit)],["Highest profit/hour",money(bestHour.r.ph)+"/h"],["Minimum margin",n("minMargin").toFixed(1)+"%"],["Target profit",money(n("targetProfit"))]].map(x=>`<div class="kpi"><span class="muted">${x[0]}</span><b>${x[1]}</b></div>`).join("");
+ $("table").innerHTML=`<thead><tr><th>Product / Channel</th><th>Total cost</th><th>Profit</th><th>Margin</th><th>Break-even</th><th>Min-margin price</th><th>Target-profit price</th><th>Profit/h</th></tr></thead><tbody>`+
+ ps.map((p,i)=>{let r=rs[i],cl=r.profit>=0?"good":"bad";return`<tr><td><b>${p.name}</b><br><span class="muted">${p.channel}</span></td><td>${money(r.total)}</td><td class="${cl}">${money(r.profit)}</td><td class="${r.margin>=n("minMargin")/100?"good":"warn"}">${(r.margin*100).toFixed(1)}%</td><td>${money(r.breakEven)}</td><td>${isFinite(r.minp)?money(r.minp):"—"}</td><td>${isFinite(r.target)?money(r.target):"—"}</td><td>${money(r.ph)}</td></tr>`}).join("")+"</tbody>";
+ $("guidance").innerHTML=ps.map((p,i)=>{let r=rs[i];return`<div class="tip" style="margin:7px 0"><b>${p.name}</b>: At ${money(p.price)}, estimated profit is <b>${money(r.profit)}</b> (${(r.margin*100).toFixed(1)}% margin). Suggested price to hit your ${n("minMargin").toFixed(0)}% minimum margin: <b>${isFinite(r.minp)?money(r.minp):"not available"}</b>. Target-profit price: <b>${isFinite(r.target)?money(r.target):"not available"}</b>.</div>`}).join("")
+}
+const settings=["filament","power","electricity","minMargin","targetProfit","overhead","etsyTx","etsyProc","etsyFixed","etsyList","etsyReg","localFee"];
+settings.forEach(id=>$(id).oninput=calculate);
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active");["dashboard","products","settings"].forEach(id=>$(id).classList.toggle("hidden",id!==b.dataset.tab));});
+$("save").onclick=()=>{localStorage.p1sPro=JSON.stringify({s:Object.fromEntries(settings.map(id=>[id,$(id).value])),p:products().map(p=>fields.map(f=>p[f[0]]))});alert("Saved on this phone.");};
+$("reset").onclick=()=>{if(confirm("Reset all business settings and products?")){localStorage.removeItem("p1sPro");location.reload()}};
+$("export").onclick=()=>{let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([localStorage.p1sPro||"{}"],{type:"application/json"}));a.download="p1s-business-settings.json";a.click()};
+$("importBtn").onclick=()=>$("file").click();
+$("file").onchange=async e=>{let t=await e.target.files[0].text();let x=JSON.parse(t);localStorage.p1sPro=t;location.reload()};
+let saved=null;try{let x=JSON.parse(localStorage.p1sPro);if(x){settings.forEach(id=>$(id).value=x.s[id]);saved=x.p}}catch(e){}render(saved);calculate();
+if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js");
+</script></body></html>
