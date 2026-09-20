@@ -1,0 +1,9 @@
+{
+  "name": "P1S Business Calculator Pro",
+  "short_name": "P1S Business",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#0f172a",
+  "description": "3D printing business pricing and profitability calculator"
+}
