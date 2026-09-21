@@ -38,7 +38,9 @@ label{display:block;font-size:11px;font-weight:750;color:#475569}input,select{di
 <label>Minimum margin (%)<input id="minMargin" type="number" value="30" step=".1"></label>
 <label>Target profit / sale ($)<input id="targetProfit" type="number" value="10" step=".01"></label>
 <label>Monthly fixed overhead ($)<input id="overhead" type="number" value="0" step=".01"></label>
+<label>Expected monthly orders (units)<input id="monthlyOrders" type="number" value="30" min="1" step="1"></label>
 </div></div>
+<div class="tip">Fixed overhead is allocated to each sale as <b>monthly fixed overhead ÷ expected monthly orders</b>. It is included in profit, margin, break-even, minimum-margin and target-profit pricing.</div></div>
 <div class="card"><h2>Sales channel fees</h2><div class="grid">
 <label>Etsy transaction (%)<input id="etsyTx" type="number" value="6.5" step=".1"></label>
 <label>Etsy processing (%)<input id="etsyProc" type="number" value="3" step=".1"></label>
@@ -72,23 +74,24 @@ function products(){return P.map((name,i)=>{let o={name};document.querySelectorA
 function channelRate(p){if(p.channel==="Etsy")return(n("etsyTx")+n("etsyProc")+n("etsyReg"))/100; if(p.channel==="Marketplace")return n("localFee")/100; return n("localFee")/100}
 function calc(p){
  let vr=channelRate(p), filament=p.grams/1000*p.kg, elec=n("power")/1000*p.hours*n("electricity"), labor=p.laborHours*p.laborRate;
- let base=filament+elec+p.pack+p.shipping+labor, failed=base*p.failure/100, fixed=base+failed;
+ let monthlyOrders=Math.max(1,n("monthlyOrders")), overheadPerSale=n("overhead")/monthlyOrders;
+ let base=filament+elec+p.pack+p.shipping+labor, failed=base*p.failure/100, fixed=base+failed+overheadPerSale;
  if(p.channel==="Etsy")fixed+=n("etsyFixed")+n("etsyList");
  let total=fixed+p.price*vr, profit=p.price-total, margin=p.price?profit/p.price:0, den=1-vr;
  let minp=(den-n("minMargin")/100)>0?fixed/(den-n("minMargin")/100):Infinity;
  let target=den>0?(fixed+n("targetProfit"))/den:Infinity;
- return{filament,elec,labor,fixed,total,profit,margin,breakEven:den>0?fixed/den:Infinity,minp,target,ph:p.hours?profit/p.hours:0}
+ return{filament,elec,labor,overheadPerSale, fixed,total,profit,margin,breakEven:den>0?fixed/den:Infinity,minp,target,ph:p.hours?profit/p.hours:0}
 }
 function calculate(){
  let ps=products(),rs=ps.map(calc);
  let bestProfit=rs.reduce((a,r,i)=>r.profit>a.r.profit?{i,r}:{i:a.i,r:a.r},{i:0,r:rs[0]});
  let bestHour=rs.reduce((a,r,i)=>r.ph>a.r.ph?{i,r}:{i:a.i,r:a.r},{i:0,r:rs[0]});
  $("kpis").innerHTML=[["Highest profit/sale",money(bestProfit.r.profit)],["Highest profit/hour",money(bestHour.r.ph)+"/h"],["Minimum margin",n("minMargin").toFixed(1)+"%"],["Target profit",money(n("targetProfit"))]].map(x=>`<div class="kpi"><span class="muted">${x[0]}</span><b>${x[1]}</b></div>`).join("");
- $("table").innerHTML=`<thead><tr><th>Product / Channel</th><th>Total cost</th><th>Profit</th><th>Margin</th><th>Break-even</th><th>Min-margin price</th><th>Target-profit price</th><th>Profit/h</th></tr></thead><tbody>`+
- ps.map((p,i)=>{let r=rs[i],cl=r.profit>=0?"good":"bad";return`<tr><td><b>${p.name}</b><br><span class="muted">${p.channel}</span></td><td>${money(r.total)}</td><td class="${cl}">${money(r.profit)}</td><td class="${r.margin>=n("minMargin")/100?"good":"warn"}">${(r.margin*100).toFixed(1)}%</td><td>${money(r.breakEven)}</td><td>${isFinite(r.minp)?money(r.minp):"—"}</td><td>${isFinite(r.target)?money(r.target):"—"}</td><td>${money(r.ph)}</td></tr>`}).join("")+"</tbody>";
- $("guidance").innerHTML=ps.map((p,i)=>{let r=rs[i];return`<div class="tip" style="margin:7px 0"><b>${p.name}</b>: At ${money(p.price)}, estimated profit is <b>${money(r.profit)}</b> (${(r.margin*100).toFixed(1)}% margin). Suggested price to hit your ${n("minMargin").toFixed(0)}% minimum margin: <b>${isFinite(r.minp)?money(r.minp):"not available"}</b>. Target-profit price: <b>${isFinite(r.target)?money(r.target):"not available"}</b>.</div>`}).join("")
+ $("table").innerHTML=`<thead><tr><th>Product / Channel</th><th>Overhead / order</th><th>Total cost</th><th>Profit</th><th>Margin</th><th>Break-even</th><th>Min-margin price</th><th>Target-profit price</th><th>Profit/h</th></tr></thead><tbody>`+
+ ps.map((p,i)=>{let r=rs[i],cl=r.profit>=0?"good":"bad";return`<tr><td><b>${p.name}</b><br><span class="muted">${p.channel}</span></td><td>${money(r.overheadPerSale)}</td><td>${money(r.total)}</td><td class="${cl}">${money(r.profit)}</td><td class="${r.margin>=n("minMargin")/100?"good":"warn"}">${(r.margin*100).toFixed(1)}%</td><td>${money(r.breakEven)}</td><td>${isFinite(r.minp)?money(r.minp):"—"}</td><td>${isFinite(r.target)?money(r.target):"—"}</td><td>${money(r.ph)}</td></tr>`}).join("")+"</tbody>";
+ $("guidance").innerHTML=ps.map((p,i)=>{let r=rs[i];return`<div class="tip" style="margin:7px 0"><b>${p.name}</b>: At ${money(p.price)}, estimated profit is <b>${money(r.profit)}</b> (${(r.margin*100).toFixed(1)}% margin), including <b>${money(r.overheadPerSale)}</b> fixed overhead per order. Suggested price to hit your ${n("minMargin").toFixed(0)}% minimum margin: <b>${isFinite(r.minp)?money(r.minp):"not available"}</b>. Target-profit price: <b>${isFinite(r.target)?money(r.target):"not available"}</b>.</div>`}).join("")
 }
-const settings=["filament","power","electricity","minMargin","targetProfit","overhead","etsyTx","etsyProc","etsyFixed","etsyList","etsyReg","localFee"];
+const settings=["filament","power","electricity","minMargin","targetProfit","overhead","monthlyOrders","etsyTx","etsyProc","etsyFixed","etsyList","etsyReg","localFee"];
 settings.forEach(id=>$(id).oninput=calculate);
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active");["dashboard","products","settings"].forEach(id=>$(id).classList.toggle("hidden",id!==b.dataset.tab));});
 $("save").onclick=()=>{localStorage.p1sPro=JSON.stringify({s:Object.fromEntries(settings.map(id=>[id,$(id).value])),p:products().map(p=>fields.map(f=>p[f[0]]))});alert("Saved on this phone.");};
@@ -96,6 +99,8 @@ $("reset").onclick=()=>{if(confirm("Reset all business settings and products?"))
 $("export").onclick=()=>{let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([localStorage.p1sPro||"{}"],{type:"application/json"}));a.download="p1s-business-settings.json";a.click()};
 $("importBtn").onclick=()=>$("file").click();
 $("file").onchange=async e=>{let t=await e.target.files[0].text();let x=JSON.parse(t);localStorage.p1sPro=t;location.reload()};
-let saved=null;try{let x=JSON.parse(localStorage.p1sPro);if(x){settings.forEach(id=>$(id).value=x.s[id]);saved=x.p}}catch(e){}render(saved);calculate();
+let saved=null;try{let x=JSON.parse(localStorage.p1sPro);if(x){settings.forEach(id=>{if(x.s[id]!==undefined)$(id).value=x.s[id]});saved=x.p}}catch(e){}render(saved);calculate();
 if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js");
+</script><script>
+if ('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 </script></body></html>
